@@ -15,6 +15,9 @@ from contextlib import closing
 from websocket import create_connection, WebSocketTimeoutException
 import json
 import time
+import wsHelp as ws
+
+
 
 parser = argparse.ArgumentParser(description="Receive data from the e32 socket")
 parser.add_argument('--datasock',
@@ -98,29 +101,7 @@ def handleLora(msgCb):
     finally:
         csock.setblocking(True)
     
-############
-## WS part
 
-ws =create_connection("ws://localhost:3003")
-ws.timeout = 1
-
-def sendToWs(args):
-    try:
-        msg=json.dumps({'addr':'server','args':args},separators=(',', ':'))
-        print("[ws] sending : ",msg)
-        ws.send(msg)
-    except Exception as error:
-        print('!!!![ws] send error : ',error)
-
-def handleWs(msgCb):
-    try :
-        data = ws.recv()
-        if data :
-            msgCb(data)
-    except WebSocketTimeoutException as _:
-        pass
-    except Exception as error:
-        print('!!!![ws] send error : ',error)
 
 #################
 # Core Logic
@@ -131,7 +112,7 @@ def processLoraMsg(msg):
     print("[lora] received : ", msg)
     sendAck(msg)
     tv = not tv
-    # sendToWs({'type':'isAgendaDisabled','value':tv})
+    # ws.sendToWs({'type':'isAgendaDisabled','value':tv})
 
 
 def setAgendaDisabled(b):
@@ -155,12 +136,12 @@ def processWSMsg(msgStr):
         setAgendaDisabled(d)
 
 def askState():
-    sendToWs({'type':'req','value':'isAgendaDisabled'})
+    ws.sendToWs({'type':'req','value':'isAgendaDisabled'})
 
 askState()
 while True:
     handleLora(processLoraMsg)
-    handleWs(processWSMsg)
+    ws.handleWs(processWSMsg)
     # print ("loop")
     
 
