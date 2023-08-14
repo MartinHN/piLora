@@ -1,6 +1,6 @@
 mount | grep 'type ext4' | grep rw
 isRW=$?
-echo "booted in ${isRW} "
+echo "booted in ${isRW} (rw:0, ro:1)"
 if [[ $isRW != 0 ]]; then sudo mount -o remount,rw /; fi
 sudo systemctl start e32
 if [[ $isRW != 0 ]]; then sudo mount -o remount,ro /; fi

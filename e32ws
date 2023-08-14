@@ -53,10 +53,8 @@ def processLoraMsg(msg):
 def setAgendaDisabled(b):
     print('agenda is ','disabled' if b else 'enabled')
 
-def processWSMsg(msgStr):
-    print("got ws",msgStr)
-
-
+def processWSMsg(msg):
+    print("got ws",msg)
     if not 'type' in msg or not 'data' in msg :
         print('invalid type')
         return
