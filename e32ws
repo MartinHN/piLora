@@ -1,0 +1,166 @@
+#!/usr/bin/python3
+
+"""
+transmit lora to and from websocket of master server raspestrio
+"""
+
+import socket
+import sys
+import os
+import signal
+import argparse
+from pathlib import Path
+import websocket
+from contextlib import closing
+from websocket import create_connection, WebSocketTimeoutException
+import json
+import time
+
+parser = argparse.ArgumentParser(description="Receive data from the e32 socket")
+parser.add_argument('--datasock',
+    help="data socket to send data to the e32",
+    default="/run/e32.data")
+parser.add_argument('--clientsock',
+    help="client socket for e32 to send data this program",
+    default=str(Path.home())+"/e32.rx.data")
+
+args = parser.parse_args()
+
+# register a signal handler so when clean up the socket on ^C for instance
+def handler(signum,_):
+    """ Handle signals by closing the socket """
+    if signum == signal.SIGINT:
+        close_sock()
+    sys.exit(1)
+
+signal.signal(signal.SIGALRM, handler)
+signal.signal(signal.SIGINT, handler)
+
+def close_sock():
+    """ close the socket and delete the file """
+    global client_sock
+    global csock
+
+    print("closing client socket", client_sock)
+
+    csock.close()
+
+    if os.path.exists(client_sock):
+        os.remove(client_sock)
+
+client_sock = args.clientsock
+e32_sock = args.datasock
+
+if os.path.exists(client_sock):
+    os.remove(client_sock)
+
+csock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+print("binding socket", client_sock)
+csock.bind(client_sock)
+
+print("registering socket", e32_sock)
+csock.sendto(b'', e32_sock)
+(msg, address) = csock.recvfrom(10)
+
+if msg[0] != 0:
+    print("unable to register client")
+    sys.exit(1)
+else:
+    print("client registered")
+
+
+def sendToLora(msg):
+    csock.sendto(msg, e32_sock)
+    (msg, address) = csock.recvfrom(512)
+    if len(msg) == 1 and msg[0] == 0:
+        pass # print("success! received 1 byte from socket", address)
+    else:
+        print("!!![lora] failed to send data. len:", len(msg))
+
+def sendAck(msg):
+    sendToLora(msg)
+    print ('sent ack')
+
+
+
+def handleLora(msgCb):
+    # receive from the e32
+    try:
+        csock.setblocking(False)
+        (msg, address) = csock.recvfrom(59)
+        csock.setblocking(True)
+        msgCb(msg)
+    except BlockingIOError as e: 
+        pass
+    except Exception as e :
+        print ("got ex")
+        print(e)
+    finally:
+        csock.setblocking(True)
+    
+############
+## WS part
+
+ws =create_connection("ws://localhost:3003")
+ws.timeout = 1
+
+def sendToWs(args):
+    try:
+        msg=json.dumps({'addr':'server','args':args},separators=(',', ':'))
+        print("[ws] sending : ",msg)
+        ws.send(msg)
+    except Exception as error:
+        print('!!!![ws] send error : ',error)
+
+def handleWs(msgCb):
+    try :
+        data = ws.recv()
+        if data :
+            msgCb(data)
+    except WebSocketTimeoutException as _:
+        pass
+    except Exception as error:
+        print('!!!![ws] send error : ',error)
+
+#################
+# Core Logic
+
+tv = True
+def processLoraMsg(msg):
+    global tv
+    print("[lora] received : ", msg)
+    sendAck(msg)
+    tv = not tv
+    # sendToWs({'type':'isAgendaDisabled','value':tv})
+
+
+def setAgendaDisabled(b):
+    print('agenda is ','disabled' if b else 'enabled')
+
+def processWSMsg(msgStr):
+    print("got ws",msgStr)
+    try:
+        msg = json.loads(msgStr)
+    except :
+        print ('msg is not JSON')
+        return
+
+    if not 'type' in msg or not 'data' in msg :
+        print('invalid type')
+        return
+    t=msg['type']
+    d=msg['data']
+
+    if t == "isAgendaDisabled":
+        setAgendaDisabled(d)
+
+def askState():
+    sendToWs({'type':'req','value':'isAgendaDisabled'})
+
+askState()
+while True:
+    handleLora(processLoraMsg)
+    handleWs(processWSMsg)
+    # print ("loop")
+    
+
