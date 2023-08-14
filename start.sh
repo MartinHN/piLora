@@ -12,5 +12,5 @@ if [[ $isRW != 0 ]]; then
 fi
 
 # sleep 1
-echo "e32ws started"
-./e32ws
+echo "e32ws will start"
+python3 -u e32ws
