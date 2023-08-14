@@ -1,5 +1,5 @@
 from websocket import create_connection, WebSocketTimeoutException
-
+import json
 
 ws =create_connection("ws://localhost:3003")
 ws.timeout = 1
@@ -15,8 +15,8 @@ def sendToWs(args):
 def handleWs(msgCb):
     try :
         data = ws.recv()
-        if data :
-            msgCb(data)
+        if data :  
+            msgCb(json.loads(data))
     except WebSocketTimeoutException as _:
         pass
     except Exception as error:
