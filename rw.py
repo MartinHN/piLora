@@ -11,7 +11,7 @@ def isRW():
     return False
 
 bootedRW = isRW()
-
+    
 def setRW(b):
     global bootedRW
     global isPi
