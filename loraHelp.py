@@ -70,8 +70,8 @@ def handleLora(msgCb):
     except BlockingIOError as e: 
         pass
     except Exception as e :
-        print ("got ex")
-        print(e)
+        print ("got lora ex",e)
+        raise e
     finally:
         csock.setblocking(True)
     
