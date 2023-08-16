@@ -11,7 +11,8 @@ def sendToWs(args):
         print("[ws] sending : ",msg)
         ws.send(msg)
     except Exception as error:
-        print('!!!![ws] send error : ',error)
+        # print('!!!![ws] send error : ',error)
+        raise Exception('!!!![ws] send error : ',error)
 
 def handleWs(msgCb):
     global ws
@@ -22,4 +23,5 @@ def handleWs(msgCb):
     except WebSocketTimeoutException as _:
         pass
     except Exception as error:
-        print('!!!![ws] send error : ',error)
+        # print('!!!![ws] rcv error : ',error)
+        raise Exception('!!!![ws] rcv error : ',error)
